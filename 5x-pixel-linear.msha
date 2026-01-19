@@ -1,0 +1,54 @@
+name: 5x Pixel Linear
+textureFiltering: LINEAR
+uniformTexSize: u_tex_size
+
+[vertex]
+attribute vec2 vUV;
+attribute vec2 vPos;
+attribute float vAlpha;
+varying vec2 uv;
+varying float alpha;
+
+void main()
+{
+    gl_Position = vec4(vPos, 0.0, 1.0);
+    uv = vUV;
+    alpha = vAlpha;
+}
+[/vertex]
+
+[fragment]
+precision mediump float;
+uniform sampler2D tex;
+uniform vec2 u_tex_size; 
+varying vec2 uv;
+varying float alpha;
+
+void main()
+{
+    vec2 st = uv * u_tex_size - vec2(0.5);
+
+    // compute integer texel position and fractional part
+    vec2 ipos = floor(st);
+    vec2 fpos = fract(st);
+
+    // pin fractional at edges before clamping so edge texels sample consistently
+    if (ipos.x < 0.0) fpos.x = 0.0;
+    else if (ipos.x > u_tex_size.x - 1.0) fpos.x = 1.0;
+    if (ipos.y < 0.0) fpos.y = 0.0;
+    else if (ipos.y > u_tex_size.y - 1.0) fpos.y = 1.0;
+
+    // clamp index into valid texel range
+    ipos = clamp(ipos, vec2(0.0), u_tex_size - vec2(1.0));
+    
+    fpos = fpos * 5.0 - 2.0;
+    fpos = clamp(fpos, 0.0, 1.0);
+    fpos = fpos * fpos * (3.0 - 2.0 * fpos); // Smoothstep curve
+
+    vec2 final_uv = (ipos + fpos + 0.5) / u_tex_size;
+    final_uv = clamp(final_uv, vec2(0.0), vec2(1.0));
+
+    vec4 color = texture2D(tex, final_uv);
+    gl_FragColor = vec4(color.bgr, alpha);
+}
+[/fragment]
